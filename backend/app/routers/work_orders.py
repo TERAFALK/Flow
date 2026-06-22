@@ -11,7 +11,7 @@ from ..schemas import (
 )
 from ..models import (
     WorkOrder, WorkOrderLine, WorkOrderStatus, Article, StockTransaction,
-    StockTransactionType, User, Customer, Vehicle,
+    StockTransactionType, User, Customer, Vehicle, TimeEntry,
 )
 
 router = APIRouter(prefix="/api/work-orders", tags=["work-orders"])
@@ -21,9 +21,7 @@ _WO_LOAD = [
     joinedload(WorkOrder.vehicle).joinedload(Vehicle.customer),
     joinedload(WorkOrder.assigned_to_user),
     joinedload(WorkOrder.lines).joinedload(WorkOrderLine.article),
-    joinedload(WorkOrder.time_entries).joinedload(
-        __import__("..models", fromlist=["TimeEntry"]).TimeEntry.user
-    ),
+    joinedload(WorkOrder.time_entries).joinedload(TimeEntry.user),
 ]
 
 
