@@ -13,7 +13,7 @@ async function request(url, options = {}) {
   if (res.status === 401) {
     localStorage.removeItem('flow_token');
     localStorage.removeItem('flow_user');
-    window.location.hash = '#/login';
+    window.dispatchEvent(new CustomEvent('flow:unauthorized'));
     throw new Error('Session utgången – logga in igen');
   }
 

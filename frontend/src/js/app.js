@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.setItem('flow_token', result.access_token);
       localStorage.setItem('flow_user', JSON.stringify(result.user));
       showApp(result.user);
+      window.location.hash = '#/dashboard';
       route();
     } catch (err) {
       errEl.textContent = err.message;
@@ -141,6 +142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     showLogin();
     if (window._timerInterval) clearInterval(window._timerInterval);
   });
+
+  // Token expired / unauthorized
+  window.addEventListener('flow:unauthorized', () => showLogin());
 
   // Check existing session
   const token = localStorage.getItem('flow_token');
