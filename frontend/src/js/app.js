@@ -43,10 +43,29 @@ function parseHash() {
   return { path, params };
 }
 
+const PAGE_TITLES = {
+  '/dashboard':    'Översikt',
+  '/work-orders':  'Arbetsorder',
+  '/customers':    'Kunder',
+  '/vehicles':     'Fordon',
+  '/scanner':      'Scanner',
+  '/articles':     'Lager',
+  '/time-entries': 'Tidrapportering',
+  '/calendar':     'Kalender',
+  '/users':        'Användare',
+};
+
 async function route() {
   const { path, params } = parseHash();
   const content = document.getElementById('page-content');
   content.innerHTML = '<div class="loading">Laddar…</div>';
+
+  // Update topbar title
+  const titleEl = document.getElementById('topbar-title');
+  if (titleEl) {
+    const base = '/' + path.split('/')[1];
+    titleEl.textContent = PAGE_TITLES[base] || 'Flow';
+  }
 
   // Update nav active state
   document.querySelectorAll('.nav-item').forEach(item => {

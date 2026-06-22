@@ -288,10 +288,12 @@ class WorkOrderListItem(BaseModel):
 # ── Scanner ───────────────────────────────────────────────────────────────────
 
 class ScanResult(BaseModel):
-    article: ArticleOut
+    article: Optional[ArticleOut] = None
+    article_name: str
     line: WorkOrderLineOut
     stock_warning: bool
-    stock_quantity: Decimal
+    stock_quantity: Optional[Decimal] = None
+    unknown: bool = False
 
 
 # ── Stock Transactions ────────────────────────────────────────────────────────

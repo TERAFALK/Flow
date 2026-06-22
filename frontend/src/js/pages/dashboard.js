@@ -2,47 +2,52 @@ import { api } from '../api.js';
 import { statusBadge, fmtDate } from '../app.js';
 
 export async function renderDashboard(el) {
-  el.innerHTML = '<div class="loading">Laddar dashboard…</div>';
+  el.innerHTML = '<div class="loading">Laddar…</div>';
   const data = await api.get('/dashboard');
 
-  const statusLabels = { ny: 'Ny', planerad: 'Planerad', pagaende: 'Pågående', klar: 'Klar', fakturerad: 'Fakturerad' };
+  // Topbar action
+  const topbarActions = document.getElementById('topbar-actions');
+  if (topbarActions) {
+    topbarActions.innerHTML = `
+      <a href="#/work-orders/new" class="btn btn-primary btn-sm">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+        Ny order
+      </a>`;
+  }
+
+  const openOrders = data.total_open;
+  const ongoing   = data.by_status.pagaende || 0;
+  const today     = data.scheduled_today;
+  const timers    = data.active_timers;
 
   el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <div class="page-title">Dashboard</div>
-        <div class="page-subtitle">Översikt över verkstadens arbetsflöde</div>
-      </div>
-      <a href="#/work-orders/new" class="btn btn-primary">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-        Ny arbetsorder
-      </a>
-    </div>
+    <div class="page-title" style="margin-bottom:4px">Översikt</div>
+    <div class="page-subtitle" style="margin-bottom:22px">Senast uppdaterat ${new Date().toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'})}</div>
 
     <div class="stat-grid">
-      <div class="stat-card">
+      <div class="stat-card accent">
         <div class="stat-label">Öppna ordrar</div>
-        <div class="stat-value" style="color:var(--primary)">${data.total_open}</div>
+        <div class="stat-value">${openOrders}</div>
         <div class="stat-sub">Ny + Planerad + Pågående</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Pågående</div>
-        <div class="stat-value" style="color:var(--warning)">${data.by_status.pagaende || 0}</div>
+        <div class="stat-value">${ongoing}</div>
         <div class="stat-sub">Just nu i arbete</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Schemalagda idag</div>
-        <div class="stat-value" style="color:var(--purple)">${data.scheduled_today}</div>
-        <div class="stat-sub">Planerade idag</div>
+        <div class="stat-value">${today}</div>
+        <div class="stat-sub">Planerade för idag</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Aktiva tidmätningar</div>
-        <div class="stat-value" style="color:var(--success)">${data.active_timers}</div>
+        <div class="stat-value">${timers}</div>
         <div class="stat-sub">Mekaniker i arbete</div>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+    <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Senaste arbetsorder</span>
@@ -62,17 +67,17 @@ export async function renderDashboard(el) {
                   <td>${statusBadge(o.status)}</td>
                   <td class="text-muted">${fmtDate(o.created_at)}</td>
                 </tr>
-              `).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:28px">Inga arbetsorder ännu</td></tr>`}
+              `).join('') : `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-3)">Inga arbetsorder ännu</td></tr>`}
             </tbody>
           </table>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">Status-fördelning</span></div>
-        <div class="card-body">
+        <div class="card-header"><span class="card-title">Status</span></div>
+        <div class="card-body" style="padding:12px 16px">
           ${Object.entries(data.by_status).map(([s, count]) => `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border-light)">
               <div>${statusBadge(s)}</div>
               <strong>${count}</strong>
             </div>

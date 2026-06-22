@@ -149,25 +149,41 @@ export async function renderScanner(el) {
     startBtn.classList.remove('btn-secondary');
   }
 
-  input.addEventListener('keydown', async (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
+  // Debounce: auto-submit 120ms after the scanner stops typing
+  let debounceTimer = null;
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(debounceTimer);
+      submitScan();
+      return;
+    }
+  });
+
+  input.addEventListener('input', () => {
+    if (!scanning || !input.value.trim()) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(submitScan, 120);
+  });
+
+  async function submitScan() {
     const barcode = input.value.trim();
     if (!barcode || !scanning) return;
-
     const orderId = orderSel.value;
     input.value = '';
 
     try {
       const result = await api.post(`/work-orders/${orderId}/scan`, { barcode });
-      showFeedback(`${result.article.name} — ${result.line.quantity} ${result.line.unit}`, 'success');
+      const name = result.article_name;
+      showFeedback(`${name} — ${result.line.quantity} ${result.line.unit}`, result.unknown ? 'warning' : 'success');
       if (result.stock_warning) {
-        warningBox.innerHTML = `⚠️ Lågt lagersaldo på <strong>${result.article.name}</strong>: ${result.stock_quantity} ${result.article.unit} kvar`;
+        warningBox.innerHTML = `Lågt lagersaldo på <strong>${name}</strong>: ${result.stock_quantity} ${result.article?.unit || 'st'} kvar`;
         warningBox.classList.remove('hidden');
       } else {
         warningBox.classList.add('hidden');
       }
-      showToast(`${result.article.name} tillagd`, 'success', 2000);
+      showToast(`${name} tillagd`, result.unknown ? 'warning' : 'success', 2000);
       await refreshLines(orderId);
     } catch (err) {
       showFeedback(err.message, 'error');
@@ -175,7 +191,7 @@ export async function renderScanner(el) {
     }
 
     setTimeout(() => { if (scanning) input.focus(); }, 80);
-  });
+  }
 
   function showFeedback(msg, type) {
     feedback.textContent = msg;

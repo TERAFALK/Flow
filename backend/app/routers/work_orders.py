@@ -255,55 +255,81 @@ def scan_article(
     article = db.query(Article).filter(
         (Article.barcode == barcode) | (Article.article_number == barcode)
     ).first()
-    if not article:
-        raise HTTPException(status_code=404, detail=f"Ingen artikel hittad för streckkod: {barcode}")
 
-    # Find existing line or create new one
-    line = db.query(WorkOrderLine).filter(
-        WorkOrderLine.work_order_id == order_id,
-        WorkOrderLine.article_id == article.id,
-    ).first()
-
-    if line:
-        line.quantity = line.quantity + Decimal("1")
-    else:
-        line = WorkOrderLine(
-            work_order_id=order_id,
+    if article:
+        # Known article — find or create line, deduct stock
+        line = db.query(WorkOrderLine).filter(
+            WorkOrderLine.work_order_id == order_id,
+            WorkOrderLine.article_id == article.id,
+        ).first()
+        if line:
+            line.quantity = line.quantity + Decimal("1")
+        else:
+            line = WorkOrderLine(
+                work_order_id=order_id,
+                article_id=article.id,
+                description=article.name,
+                quantity=Decimal("1"),
+                unit=article.unit,
+                unit_price=article.price,
+            )
+            db.add(line)
+        article.stock_quantity = article.stock_quantity - Decimal("1")
+        tx = StockTransaction(
             article_id=article.id,
-            description=article.name,
-            quantity=Decimal("1"),
-            unit=article.unit,
-            unit_price=article.price,
+            quantity=Decimal("-1"),
+            transaction_type=StockTransactionType.out,
+            work_order_id=order_id,
+            user_id=current_user.id,
+            notes=f"Plockad till {wo.order_number}",
         )
-        db.add(line)
-
-    # Deduct from stock
-    article.stock_quantity = article.stock_quantity - Decimal("1")
-    tx = StockTransaction(
-        article_id=article.id,
-        quantity=Decimal("-1"),
-        transaction_type=StockTransactionType.out,
-        work_order_id=order_id,
-        user_id=current_user.id,
-        notes=f"Plockad till {wo.order_number}",
-    )
-    db.add(tx)
-    db.commit()
-    db.refresh(line)
-    db.refresh(article)
-
-    line_with_article = (
-        db.query(WorkOrderLine)
-        .options(joinedload(WorkOrderLine.article))
-        .get(line.id)
-    )
-
-    return ScanResult(
-        article=article,
-        line=line_with_article,
-        stock_warning=article.stock_quantity < article.min_stock,
-        stock_quantity=article.stock_quantity,
-    )
+        db.add(tx)
+        db.commit()
+        db.refresh(line)
+        db.refresh(article)
+        line_with_article = (
+            db.query(WorkOrderLine)
+            .options(joinedload(WorkOrderLine.article))
+            .get(line.id)
+        )
+        return ScanResult(
+            article=article,
+            article_name=article.name,
+            line=line_with_article,
+            stock_warning=article.stock_quantity < article.min_stock,
+            stock_quantity=article.stock_quantity,
+            unknown=False,
+        )
+    else:
+        # Unknown barcode — add as unnamed line, no article record created
+        desc = f"Okänd ({barcode})"
+        line = db.query(WorkOrderLine).filter(
+            WorkOrderLine.work_order_id == order_id,
+            WorkOrderLine.article_id.is_(None),
+            WorkOrderLine.description == desc,
+        ).first()
+        if line:
+            line.quantity = line.quantity + Decimal("1")
+        else:
+            line = WorkOrderLine(
+                work_order_id=order_id,
+                article_id=None,
+                description=desc,
+                quantity=Decimal("1"),
+                unit="st",
+                unit_price=Decimal("0"),
+            )
+            db.add(line)
+        db.commit()
+        db.refresh(line)
+        return ScanResult(
+            article=None,
+            article_name=desc,
+            line=line,
+            stock_warning=False,
+            stock_quantity=None,
+            unknown=True,
+        )
 
 
 # ── Invoice basis ─────────────────────────────────────────────────────────────
