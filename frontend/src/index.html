@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flow – Verkstadsystem</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -14,10 +14,11 @@
 <div id="login-screen" class="login-screen hidden">
   <div class="login-card">
     <div class="login-logo">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="10" fill="#3b82f6"/>
-        <path d="M8 18h6l3-8 5 16 3-8h3" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+        </svg>
+      </div>
       <span>Flow</span>
     </div>
     <h1>Logga in</h1>
@@ -41,11 +42,12 @@
 <div id="app" class="app hidden">
   <aside id="sidebar">
     <div class="sidebar-header">
-      <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="10" fill="#3b82f6"/>
-        <path d="M8 18h6l3-8 5 16 3-8h3" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="sidebar-title">Flow</span>
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+        </svg>
+      </div>
+      <span class="sidebar-title">Fl<span>ow</span></span>
     </div>
     <nav class="sidebar-nav">
       <a href="#/dashboard" class="nav-item" data-page="dashboard">
