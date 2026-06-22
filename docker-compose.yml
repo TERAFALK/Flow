@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flow}
+      POSTGRES_USER: ${POSTGRES_USER:-flow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowpass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flow}:${POSTGRES_PASSWORD:-flowpass}@db:5432/${POSTGRES_DB:-flow}
+      SECRET_KEY: ${SECRET_KEY:-super-secret-key-change-in-production}
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-admin@flow.local}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-admin}
+      FIRST_ADMIN_NAME: ${FIRST_ADMIN_NAME:-Administratör}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/uploads
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads:
