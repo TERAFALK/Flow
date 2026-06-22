@@ -43,8 +43,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "85:80"
+    expose:
+      - "80"
     networks:
       - internal
       - npm_proxy
