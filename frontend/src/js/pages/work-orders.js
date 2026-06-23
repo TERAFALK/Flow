@@ -261,22 +261,15 @@ async function loadDetail(el, id) {
       </div>
     ` : ''}
 
-    <!-- body_text always visible -->
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header">
-        <span class="card-title">Arbetstext</span>
-        <span class="text-muted" style="font-size:12px" id="body-save-status"></span>
-      </div>
-      <div class="card-body" style="padding-top:0">
-        <textarea id="body-text-area" rows="5" placeholder="Beskriv arbetet i detalj, noteringar, teknisk information…" style="width:100%;resize:vertical">${wo.body_text || ''}</textarea>
-      </div>
-    </div>
+    <!-- Gantt always visible in overview -->
+    <div id="overview-gantt" style="margin-bottom:20px"></div>
 
     <div class="tabs" id="wo-tabs">
       <div class="tab active" data-tab="parts">Delar (${wo.lines.length})</div>
       <div class="tab" data-tab="time">Tid (${fmtDuration(totalMins)})</div>
       <div class="tab" data-tab="phases">Faser</div>
       <div class="tab" data-tab="purchases">Inköp</div>
+      <div class="tab" data-tab="bodytext">Arbetstext</div>
       <div class="tab" data-tab="documents">Dokument</div>
       <div class="tab" data-tab="photos">Foton</div>
       <div class="tab" data-tab="drawings">Ritningar</div>
@@ -318,35 +311,39 @@ async function loadDetail(el, id) {
     <!-- TID -->
     <div id="tab-time" class="hidden">
       <div id="timer-section" style="margin-bottom:16px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-secondary" id="add-manual-time-btn">+ Manuell tidpost</button>
+      </div>
+      <div id="time-list-wrap">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mekaniker</th><th>Typ</th><th>Start</th><th>Stopp</th><th class="text-right">Tid</th><th></th></tr></thead>
+              <tbody id="time-entries-tbody">
+                ${wo.time_entries.map(e => timeEntryRow(e, id)).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">Inga tidposter</td></tr>'}
+              </tbody>
+              ${wo.time_entries.filter(e=>e.end_time).length ? `
+                <tfoot><tr class="total-row">
+                  <td colspan="4">Total tid</td>
+                  <td class="text-right">${fmtDuration(totalMins)}</td>
+                  <td></td>
+                </tr></tfoot>
+              ` : ''}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARBETSTEXT -->
+    <div id="tab-bodytext" class="hidden">
       <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Mekaniker</th><th>Typ</th><th>Start</th><th>Stopp</th><th class="text-right">Tid</th><th></th></tr></thead>
-            <tbody>
-              ${wo.time_entries.map(e => `
-                <tr>
-                  <td>${e.user?.full_name || '–'}</td>
-                  <td>${e.entry_type}</td>
-                  <td>${fmtDate(e.start_time, true)}</td>
-                  <td>${e.end_time ? fmtDate(e.end_time, true) : '<span class="badge badge-pagaende">Pågår</span>'}</td>
-                  <td class="text-right quantity-cell">${e.duration_minutes != null ? fmtDuration(e.duration_minutes) : '–'}</td>
-                  <td>
-                    ${!e.end_time ? `<button class="btn btn-sm btn-danger" onclick="window._stopTimer(${e.id}, ${id})">Stopp</button>` : ''}
-                    <button class="btn-icon" onclick="window._deleteTE(${e.id}, ${id})">
-                      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                    </button>
-                  </td>
-                </tr>
-              `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">Inga tidposter</td></tr>'}
-            </tbody>
-            ${wo.time_entries.filter(e=>e.end_time).length ? `
-              <tfoot><tr class="total-row">
-                <td colspan="4">Total tid</td>
-                <td class="text-right">${fmtDuration(totalMins)}</td>
-                <td></td>
-              </tr></tfoot>
-            ` : ''}
-          </table>
+        <div class="card-header">
+          <span class="card-title">Arbetstext</span>
+          <span class="text-muted" style="font-size:12px" id="body-save-status"></span>
+        </div>
+        <div class="card-body" style="padding-top:0">
+          <textarea id="body-text-area" rows="10" placeholder="Beskriv arbetet i detalj, noteringar, teknisk information…" style="width:100%;resize:vertical">${wo.body_text || ''}</textarea>
         </div>
       </div>
     </div>
@@ -402,7 +399,7 @@ async function loadDetail(el, id) {
   `;
 
   // ── Tab switching ───────────────────────────────────────────────────────────
-  const ALL_TABS = ['parts','time','phases','purchases','documents','photos','drawings','activities','tasks'];
+  const ALL_TABS = ['parts','time','phases','purchases','bodytext','documents','photos','drawings','activities','tasks'];
   const tabLoadedMap = {};
 
   document.getElementById('wo-tabs').addEventListener('click', (e) => {
@@ -423,6 +420,7 @@ async function loadDetail(el, id) {
   function loadTab(name) {
     if (name === 'phases')     loadPhases(id);
     if (name === 'purchases')  loadPurchases(id, users);
+    if (name === 'bodytext')   initBodyText(id);
     if (name === 'documents')  loadFiles(id, 'document');
     if (name === 'photos')     loadFiles(id, 'photo');
     if (name === 'drawings')   loadFiles(id, 'drawing');
@@ -430,24 +428,16 @@ async function loadDetail(el, id) {
     if (name === 'tasks')      loadTasks(id, users);
   }
 
-  // ── body_text auto-save ─────────────────────────────────────────────────────
-  const bodyArea = document.getElementById('body-text-area');
-  const saveStatus = document.getElementById('body-save-status');
-  let bodyTimer;
-  bodyArea.addEventListener('input', () => {
-    saveStatus.textContent = 'Osparad…';
-    clearTimeout(bodyTimer);
-    bodyTimer = setTimeout(async () => {
-      try {
-        await api.put(`/work-orders/${id}`, { body_text: bodyArea.value });
-        saveStatus.textContent = 'Sparad';
-        setTimeout(() => { saveStatus.textContent = ''; }, 2000);
-      } catch { saveStatus.textContent = 'Fel vid sparning'; }
-    }, 1200);
-  });
+  // ── Gantt overview (always visible) ─────────────────────────────────────────
+  loadOverviewGantt(id);
 
   // ── Timer section ───────────────────────────────────────────────────────────
   loadTimerSection(id);
+
+  // ── Manual time entry ────────────────────────────────────────────────────────
+  document.getElementById('add-manual-time-btn').addEventListener('click', () =>
+    openManualTimeForm(id, () => loadDetail(el, id))
+  );
 
   // ── Add line ────────────────────────────────────────────────────────────────
   document.getElementById('add-line-btn').addEventListener('click', () =>
@@ -579,17 +569,52 @@ async function loadTimerSection(orderId) {
   }
 }
 
-// ── Phases / Gantt ────────────────────────────────────────────────────────────
+// ── Time entry row helper ─────────────────────────────────────────────────────
 
-async function loadPhases(orderId) {
-  const el = document.getElementById('phases-content');
-  if (!el) return;
+function timeEntryRow(e, orderId) {
+  return `<tr>
+    <td>${e.user?.full_name || '–'}</td>
+    <td>${e.entry_type}</td>
+    <td>${fmtDate(e.start_time, true)}</td>
+    <td>${e.end_time ? fmtDate(e.end_time, true) : '<span class="badge badge-pagaende">Pågår</span>'}</td>
+    <td class="text-right quantity-cell">${e.duration_minutes != null ? fmtDuration(e.duration_minutes) : '–'}</td>
+    <td>
+      ${!e.end_time ? `<button class="btn btn-sm btn-danger" onclick="window._stopTimer(${e.id}, ${orderId})">Stopp</button>` : ''}
+      <button class="btn-icon" onclick="window._deleteTE(${e.id}, ${orderId})">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+      </button>
+    </td>
+  </tr>`;
+}
+
+// ── Body text tab init ────────────────────────────────────────────────────────
+
+function initBodyText(orderId) {
+  const bodyArea = document.getElementById('body-text-area');
+  const saveStatus = document.getElementById('body-save-status');
+  if (!bodyArea || bodyArea.dataset.initDone) return;
+  bodyArea.dataset.initDone = '1';
+  let bodyTimer;
+  bodyArea.addEventListener('input', () => {
+    saveStatus.textContent = 'Osparad…';
+    clearTimeout(bodyTimer);
+    bodyTimer = setTimeout(async () => {
+      try {
+        await api.put(`/work-orders/${orderId}`, { body_text: bodyArea.value });
+        saveStatus.textContent = 'Sparad';
+        setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+      } catch { saveStatus.textContent = 'Fel vid sparning'; }
+    }, 1200);
+  });
+}
+
+// ── Overview Gantt (always visible) ──────────────────────────────────────────
+
+async function loadOverviewGantt(orderId) {
+  const container = document.getElementById('overview-gantt');
+  if (!container) return;
   const phases = await api.get(`/work-orders/${orderId}/phases`).catch(() => []);
-
-  if (!phases.length) {
-    el.innerHTML = `<div class="empty-state"><p>Inga faser tillagda än</p></div>`;
-    return;
-  }
+  if (!phases.length) return;
 
   const dates = phases.flatMap(p => [p.start_date, p.end_date]).filter(Boolean).map(d => new Date(d));
   const minDate = dates.length ? new Date(Math.min(...dates)) : new Date();
@@ -608,8 +633,8 @@ async function loadPhases(orderId) {
   const todayPct = Math.min(100, Math.max(0, ((today - minDate) / rangeMs) * 100));
   const fmtShort = (d) => d ? new Date(d).toLocaleDateString('sv-SE', { month:'short', day:'numeric' }) : '–';
 
-  el.innerHTML = `
-    <div class="card" style="margin-bottom:16px">
+  container.innerHTML = `
+    <div class="card">
       <div class="card-header"><span class="card-title">Gantt-schema</span></div>
       <div class="card-body" style="overflow-x:auto">
         <div class="gantt-wrap" style="min-width:500px">
@@ -634,7 +659,73 @@ async function loadPhases(orderId) {
         </div>
       </div>
     </div>
+  `;
+}
 
+// ── Manual time entry form ────────────────────────────────────────────────────
+
+function openManualTimeForm(orderId, onSaved) {
+  const now = new Date();
+  const toLocal = (d) => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const defaultStart = toLocal(new Date(now.getTime() - 60*60000));
+  const defaultEnd = toLocal(now);
+
+  openModal({
+    title: 'Lägg till manuell tidpost',
+    body: `
+      <form id="manual-time-form">
+        <div class="form-row">
+          <div class="field"><label>Starttid *</label><input type="datetime-local" name="start_time" value="${defaultStart}" required></div>
+          <div class="field"><label>Sluttid *</label><input type="datetime-local" name="end_time" value="${defaultEnd}" required></div>
+        </div>
+        <div class="field">
+          <label>Typ av arbete</label>
+          <select name="entry_type">
+            <option value="övrigt">Övrigt</option>
+            <option value="felsökning">Felsökning</option>
+            <option value="reparation">Reparation</option>
+            <option value="provkörning">Provkörning</option>
+          </select>
+        </div>
+        <div class="field"><label>Beskrivning</label><input type="text" name="description" placeholder="Valfri anteckning"></div>
+        <div class="modal-footer" style="padding:0;border:none;margin-top:8px">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Avbryt</button>
+          <button type="submit" class="btn btn-primary">Spara</button>
+        </div>
+      </form>
+    `,
+  });
+  document.getElementById('manual-time-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      await api.post('/time-entries/manual', {
+        work_order_id: orderId,
+        start_time: new Date(data.start_time).toISOString(),
+        end_time: new Date(data.end_time).toISOString(),
+        entry_type: data.entry_type,
+        description: data.description || null,
+      });
+      showToast('Tidpost tillagd', 'success');
+      closeModal();
+      onSaved?.();
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+// ── Phases / Gantt ────────────────────────────────────────────────────────────
+
+async function loadPhases(orderId) {
+  const el = document.getElementById('phases-content');
+  if (!el) return;
+  const phases = await api.get(`/work-orders/${orderId}/phases`).catch(() => []);
+
+  if (!phases.length) {
+    el.innerHTML = `<div class="empty-state"><p>Inga faser tillagda än</p></div>`;
+    return;
+  }
+
+  el.innerHTML = `
     <div class="card">
       <div class="table-wrap">
         <table>
@@ -663,6 +754,9 @@ async function loadPhases(orderId) {
       </div>
     </div>
   `;
+
+  // Refresh overview gantt when phases change
+  loadOverviewGantt(orderId);
 
   window._editPhase = async (oid, pid) => {
     const phase = await api.get(`/work-orders/${oid}/phases`).then(list => list.find(p => p.id === pid));
@@ -865,8 +959,8 @@ async function loadFiles(orderId, fileType) {
     ${isPhoto ? `
       <div class="photo-grid" id="filelist-${fileType}">
         ${files.map(f => `
-          <div class="photo-thumb">
-            <img src="/api/work-orders/${orderId}/files/${f.id}/download" loading="lazy" onclick="window._viewPhoto('/api/work-orders/${orderId}/files/${f.id}/download')" style="cursor:zoom-in">
+          <div class="photo-thumb" data-file-id="${f.id}" data-order-id="${orderId}">
+            <img data-src="/api/work-orders/${orderId}/files/${f.id}/download" style="cursor:zoom-in;background:var(--surface-2)" onclick="window._viewPhotoAuth(${orderId}, ${f.id})">
             <button class="photo-delete" onclick="window._deleteFile(${orderId}, ${f.id}, '${fileType}')" title="Ta bort">×</button>
             <div class="photo-name">${f.original_name}</div>
           </div>
@@ -881,9 +975,9 @@ async function loadFiles(orderId, fileType) {
               ${files.map(f => `
                 <tr>
                   <td>
-                    <a href="/api/work-orders/${orderId}/files/${f.id}/download" download="${f.original_name}" style="color:var(--accent)">
+                    <button class="btn btn-ghost btn-sm" onclick="window._downloadFile(${orderId}, ${f.id}, '${f.original_name.replace(/'/g,"\\'")}')">
                       ${fileIcon(f.original_name)} ${f.original_name}
-                    </a>
+                    </button>
                   </td>
                   <td class="text-muted">${fmtBytes(f.size_bytes)}</td>
                   <td class="text-muted">${fmtDate(f.uploaded_at)}</td>
@@ -916,18 +1010,57 @@ async function loadFiles(orderId, fileType) {
     fileInput.value = '';
   });
 
+  window._downloadFile = async (oid, fid, name) => {
+    try {
+      const token = localStorage.getItem('flow_token');
+      const resp = await fetch(`/api/work-orders/${oid}/files/${fid}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error('Nedladdning misslyckades');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { showToast(err.message, 'error'); }
+  };
   window._deleteFile = async (oid, fid, ft) => {
     if (await confirmDialog('Ta bort filen?')) {
       await api.delete(`/work-orders/${oid}/files/${fid}`);
       loadFiles(oid, ft);
     }
   };
-  window._viewPhoto = (src) => {
-    const viewer = document.getElementById('img-viewer');
-    if (!viewer) return;
-    document.getElementById('img-viewer-img').src = src;
-    viewer.style.display = 'flex';
+  window._viewPhotoAuth = async (oid, fid) => {
+    try {
+      const token = localStorage.getItem('flow_token');
+      const resp = await fetch(`/api/work-orders/${oid}/files/${fid}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error('Kunde inte ladda bilden');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const viewer = document.getElementById('img-viewer');
+      if (!viewer) return;
+      const imgEl = document.getElementById('img-viewer-img');
+      if (imgEl._prevUrl) URL.revokeObjectURL(imgEl._prevUrl);
+      imgEl._prevUrl = url;
+      imgEl.src = url;
+      viewer.style.display = 'flex';
+    } catch (err) { showToast(err.message, 'error'); }
   };
+
+  // Load photo thumbnails with auth
+  el.querySelectorAll('img[data-src]').forEach(async (img) => {
+    try {
+      const token = localStorage.getItem('flow_token');
+      const resp = await fetch(img.dataset.src, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) return;
+      const blob = await resp.blob();
+      img.src = URL.createObjectURL(blob);
+    } catch { /* silently ignore */ }
+  });
 }
 
 async function uploadFiles(orderId, fileType, files) {

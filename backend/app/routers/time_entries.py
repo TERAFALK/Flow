@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from ..database import get_db
 from ..deps import get_current_user
-from ..schemas import TimeEntryCreate, TimeEntryStop, TimeEntryOut
+from ..schemas import TimeEntryCreate, TimeEntryStop, TimeEntryManual, TimeEntryOut
 from ..models import TimeEntry, WorkOrder, User
 
 router = APIRouter(prefix="/api/time-entries", tags=["time-entries"])
@@ -49,6 +49,32 @@ def start_timer(
         work_order_id=body.work_order_id,
         user_id=current_user.id,
         start_time=datetime.utcnow(),
+        description=body.description,
+        entry_type=body.entry_type,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return db.query(TimeEntry).options(joinedload(TimeEntry.user)).get(entry.id)
+
+
+@router.post("/manual", response_model=TimeEntryOut, status_code=status.HTTP_201_CREATED)
+def create_manual_entry(
+    body: TimeEntryManual,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not db.get(WorkOrder, body.work_order_id):
+        raise HTTPException(status_code=404, detail="Arbetsorder ej hittad")
+    if body.end_time <= body.start_time:
+        raise HTTPException(status_code=400, detail="Sluttid måste vara efter starttid")
+    delta = body.end_time - body.start_time
+    entry = TimeEntry(
+        work_order_id=body.work_order_id,
+        user_id=current_user.id,
+        start_time=body.start_time,
+        end_time=body.end_time,
+        duration_minutes=int(delta.total_seconds() / 60),
         description=body.description,
         entry_type=body.entry_type,
     )

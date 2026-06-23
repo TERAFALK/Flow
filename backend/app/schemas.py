@@ -238,6 +238,14 @@ class TimeEntryStop(BaseModel):
     entry_type: Optional[TimeEntryType] = None
 
 
+class TimeEntryManual(BaseModel):
+    work_order_id: int
+    start_time: datetime
+    end_time: datetime
+    entry_type: TimeEntryType = TimeEntryType.övrigt
+    description: Optional[str] = None
+
+
 class TimeEntryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
